@@ -15,6 +15,7 @@ create_menu() { # $1 = options array
     ((options_length++))
     local cursor_pos=0
 
+    echo -e "SPACE to select, ENTER to confirm"
     write_menu "${options[*]}" "${selected[*]}" "$cursor_pos" # write initial menu
 
     # start loop
@@ -58,7 +59,7 @@ create_menu() { # $1 = options array
     done
 
     # end
-    local erase_length=$((options_length-1))
+    local erase_length=$((options_length))
     echo -e "$escape_char["$erase_length"A$escape_char[0J$escape_char[1A" # move cursor up and overwrite menu
     SELECTED_OPTIONS=( )
     for (( i=0; i<${#options[@]}; i++ )); do
