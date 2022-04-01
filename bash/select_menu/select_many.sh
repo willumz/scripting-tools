@@ -94,9 +94,3 @@ write_menu () { # $1 = options array, $2 = selected options array, $3 = cursor p
     done
 
 }
-
-
-options2=( "hi" "hello" "hey" )
-create_menu "${options2[*]}"
-#selected2=( true false true )
-#write_menu "${options2[*]}" "${selected2[*]}"
