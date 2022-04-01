@@ -23,19 +23,21 @@ create_menu() { # $1 = options array
         echo -e "$escape_char["$options_length"A" # move cursor up
         write_menu "${options[*]}" "${selected[*]}" "$cursor_pos" # write updated menu
 
-        read -rsn1 key # read key
-        if [[ $key == $escape_char ]]; then
+        IFS= read -rsn1 key # read key
+        if [[ "$key" == $escape_char ]]; then
             read -rsn2 key # read rest of key
             case $key in
                 '[A') arrow=1;;
                 '[B') arrow=2;;
             esac
-        elif [[ $key == '' ]]; then
+        elif [[ "$key" == ' ' ]]; then
             if [[ ${selected[$cursor_pos]} == "true" ]]; then
                 selected[$cursor_pos]=false
             else
                 selected[$cursor_pos]=true
             fi
+        elif [[ "$key" == "" ]]; then
+            break
         fi
 
         case $arrow in
@@ -54,6 +56,19 @@ create_menu() { # $1 = options array
         esac
 
     done
+
+    # end
+    local erase_length=$((options_length-1))
+    echo -e "$escape_char["$erase_length"A$escape_char[0J$escape_char[1A" # move cursor up and overwrite menu
+    SELECTED_OPTIONS=( )
+    for (( i=0; i<${#options[@]}; i++ )); do
+        if [[ ${selected[$i]} == "true" ]]; then
+            SELECTED_OPTIONS+=( ${options[$i]} )
+        fi
+    done
+    # for (( i=0; i<${#SELECTED_OPTIONS[@]}; i++ )); do
+    #     if (( i == ${#SELECTED_OPTIONS[@]}-1 )); then echo -e -n "${SELECTED_OPTIONS[$i]}"; else echo -e "${SELECTED_OPTIONS[$i]}"; fi
+    # done
 }
 
 write_menu () { # $1 = options array, $2 = selected options array, $3 = cursor position
