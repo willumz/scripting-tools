@@ -107,6 +107,39 @@ write_menu () { # $1 = options array, $2 = selected options array, $3 = cursor p
 # ------------ END select_many ------------
 # -----------------------------------------
 
+shopt -s extglob
+
+parse_header() { # $1 = file contents
+
+    local in_header=false
+    local file_contents=( $1 )
+    PARSE_HEADER_SUCCESS=true
+    HEADER_TYPE=""
+    HEADER_ON_MODIFY=""
+
+    for line in "${file_contents[@]}"; do
+        if [[ $line == "----" && $in_header == true ]]; then
+            in_header=false
+            break
+        elif [[ $line == "----" ]]; then
+            in_header=true
+        else
+            case $line in
+                type=+([a-zA-Z\-]))
+                    HEADER_TYPE=${line#*=};;
+                on-modify=*)
+                    HEADER_ON_MODIFY=${line#*=};;
+                *)
+                    PARSE_HEADER_SUCCESS=false;;
+            esac
+        fi
+    done
+    if [ $in_header == true ]; then
+        PARSE_HEADER_SUCCESS=false
+    fi
+
+}
+
 # get hooks from dir
 hooks=( )
 for file in $SCRIPT_DIR/hooks/*; do
