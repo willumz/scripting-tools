@@ -1,6 +1,7 @@
 ----
-pre-commit
+type=pre-commit
+on-modify=.*\.sh
 ----
 #!/bin/bash
 GIT_DIR=$(git rev-parse --git-dir)
-echo -e "Commiting changes in $(dirname $GIR_DIR)"
+echo -e "Commiting changes in $(dirname $GIT_DIR)"
