@@ -116,8 +116,10 @@ parse_header() { # $1 = file contents
     PARSE_HEADER_SUCCESS=true
     HEADER_TYPE=""
     HEADER_ON_MODIFY=""
+    HEADER_END_LINE=0 # line header ends on
 
     for line in "${file_contents[@]}"; do
+        ((HEADER_END_LINE++))
         if [[ $line == "----" && $in_header == true ]]; then
             in_header=false
             break
@@ -178,51 +180,55 @@ echo -e "\e[33m====PARSING HOOKS====\e[39m"
 
 for hook in "${SELECTED_OPTIONS[@]}"; do
     echo -e "\e[33mParsing hook: $hook\e[39m"
-    count=0
+    file_lines=( )
     while read -r line; do
         line="${line/$'\r'/}"
-        if ((count == 0 || count == 2)); then
-            if [[ "$line" != "----" ]]; then echo -e "\e[1A\e[2K\e[31mError: failed to parse '$hook' (invalid metadata structure)\e[39m"; fi
-        elif ((count == 1)); then
-            parse_success=true
-            case $line in
-                "applypatch-msg") applypatch_msg+=( "$hook" );;
-                "commit-msg") commit_msg+=( "$hook" );;
-                "fsmonitor-watchman") fsmonitor_watchman+=( "$hook" );;
-                "post-update") post_update+=( "$hook" );;
-                "pre-applypatch") pre_applypatch+=( "$hook" );;
-                "pre-commit") pre_commit+=( "$hook" );;
-                "pre-merge-commit") pre_merge_commit+=( "$hook" );;
-                "prepare-commit-msg") prepare_commit_msg+=( "$hook" );;
-                "pre-push") pre_push+=( "$hook" );;
-                "pre-rebase") pre_rebase+=( "$hook" );;
-                "pre-receive") pre_receive+=( "$hook" );;
-                "push-to-checkout") push_to_checkout+=( "$hook" );;
-                "update") update+=( "$hook" );;
-                *) echo -e "\e[1A\e[2K\e[31mError: failed to parse '$hook' (invalid type)\e[39m"; parse_success=false;;
-            esac
-            if [ parse_success ]; then echo -e "\e[1A\e[2K\e[32mParsed '$hook' successfully\e[39m"; fi
-        fi
-        ((count++))
+        file_lines+=( "$line" )
+        # TODO: only read until second '----'
     done < "$SCRIPT_DIR/hooks/$hook"
+    parse_header "${file_lines[*]}"
+    if [ $PARSE_HEADER_SUCCESS == false ]; then echo -e "\e[1A\e[2K\e[31mError: failed to parse '$hook' (invalid metadata structure)\e[39m"
+    else
+        parse_success=true
+        case $HEADER_TYPE in
+            "applypatch-msg") applypatch_msg+=( "$hook" );;
+            "commit-msg") commit_msg+=( "$hook" );;
+            "fsmonitor-watchman") fsmonitor_watchman+=( "$hook" );;
+            "post-update") post_update+=( "$hook" );;
+            "pre-applypatch") pre_applypatch+=( "$hook" );;
+            "pre-commit") pre_commit+=( "$hook" );;
+            "pre-merge-commit") pre_merge_commit+=( "$hook" );;
+            "prepare-commit-msg") prepare_commit_msg+=( "$hook" );;
+            "pre-push") pre_push+=( "$hook" );;
+            "pre-rebase") pre_rebase+=( "$hook" );;
+            "pre-receive") pre_receive+=( "$hook" );;
+            "push-to-checkout") push_to_checkout+=( "$hook" );;
+            "update") update+=( "$hook" );;
+            *) echo -e "\e[1A\e[2K\e[31mError: failed to parse '$hook' (invalid type)\e[39m"; parse_success=false;;
+        esac
+        if [ $parse_success == true ]; then echo -e "\e[1A\e[2K\e[32mParsed '$hook' successfully\e[39m"; fi
+    fi
 done
 
 compile_hook() { # $1 = hook name, $2 = hook array
     local hooks=( $2 )
+    local hook_lines=( )
     rm -f "$GIT_DIR/hooks/$1"
     if (( ${#hooks[@]} > 0 )); then
         echo -e "\e[33mCompiling hook: $1\e[39m"
-        local line_count=0
         
         for hook in "${hooks[@]}"; do
-            line_count=0
+            hook_lines=( )
             while IFS= read -r line; do
                 line="${line/$'\r'/}"
-                if ((line_count > 2)); then
-                    echo "$line" >> "$GIT_DIR/hooks/$1"
-                fi
-                ((line_count++))
+                hook_lines+=( "$line" )
             done < "$SCRIPT_DIR/hooks/$hook"
+            parse_header "${hook_lines[*]}"
+            for (( i=1; i<${#hook_lines[@]}; i++ )); do
+                if ((i > HEADER_END_LINE)); then
+                    echo "${hook_lines[$i]}" >> "$GIT_DIR/hooks/$1"
+                fi
+            done
         done
 
         echo -e "\e[1A\e[2K\e[32mCompiled hook: $1\e[39m"
